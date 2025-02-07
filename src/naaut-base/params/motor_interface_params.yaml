@@ -1,0 +1,5 @@
+minolo_motor_interface:
+  ros__parameters:
+    serial_port: /dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller-if00-port0
+    baudrate: 115200
+    autozero_vel_timeout_seconds: 0.1

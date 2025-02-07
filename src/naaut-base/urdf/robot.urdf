@@ -1,0 +1,101 @@
+<?xml version="1.0" ?>
+<robot name="diglobot2">
+
+  <link name="base_footprint">
+    <visual>
+      <geometry>
+        <box size="0.48 0.3 0.01"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0.15 0 0.12"/>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+  </link>
+  <link name="imu_link">
+    <visual>
+      <geometry>
+        <box size="0.05 0.05 0.05"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <link name="lwheel">
+    <visual>
+      <geometry>
+        <cylinder length="0.060" radius="0.085"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="rwheel">
+    <visual>
+      <geometry>
+        <cylinder length="0.060" radius="0.085"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="fwheel">
+    <visual>
+      <geometry>
+        <cylinder length="0.005" radius="0.020"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0.0 0 0"/>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+  </link>
+  
+  <link name="scanner_link">
+    <visual>
+      <geometry>
+        <cylinder length="0.02" radius="0.025"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0.0 0 0.0"/>
+      <material name="blue">
+        <color rgba="0 0 1 1"/>
+      </material>
+    </visual>
+  </link>
+
+
+  <joint name="base_to_lwheel" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="lwheel"/>
+    <origin xyz="0 0.18 0.085" rpy="1.5708 0 0"/>
+  </joint>
+  
+  <joint name="base_to_rwheel" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="rwheel"/>
+    <origin xyz="0 -0.18 0.085" rpy="-1.5708 0 0"/>
+  </joint>
+
+  <joint name="base_to_scanner" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="scanner_link"/>
+    <origin xyz="0.045 0 0.225" rpy="0 0 -1.57079"/>
+  </joint>
+
+  <joint name="base_to_fwheel" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="fwheel"/>
+    <origin xyz="0.36 0.0 0.0" rpy="1.578 0 0"/>
+  </joint>
+
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="imu_link"/>
+    <origin xyz="0.21 -0.02 0.15" rpy="0 0 0"/>
+  </joint>
+</robot>
