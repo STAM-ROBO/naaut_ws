@@ -27,7 +27,7 @@ colcon build --symlik-install
 
 Packages description
 
-naaut-base: 
+naaut-base:
     - main launch files
     - vessel-specific config files
     - 3D models
