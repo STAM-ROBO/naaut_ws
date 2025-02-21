@@ -15,7 +15,6 @@ sudo apt install ros-humble-nav2-bringup
 sudo apt install ros-humble-robot-localization
 sudo apt install ros-humble-tf2-tools
 sudo apt install ros-humble-tf-transformations
-pip install um982-driver
 pip install pyserial
 
 4) Build the workspace
@@ -34,3 +33,6 @@ naaut-base:
 
 um982_driver:
     - ROS2 driver for Unicorecomm UM982 dual antenna RTK receiver
+
+ntrip_client:
+    - publica correzioni RTCM su /rtcm (tipo: rtcm_msgs)
