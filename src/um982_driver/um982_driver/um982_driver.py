@@ -21,26 +21,18 @@ class UM982DriverROS2(Node):
         self.declare_parameter('username', "ddigloria")
         self.declare_parameter('password', "cogo-2023")
     
-        port = self.get_parameter('port').get_parameter_value().string_value
-        baudrate = self.get_parameter('baudrate').get_parameter_value().integer_value
-        update_frequency = self.get_parameter('update_frequency').get_parameter_value().double_value
-        
-        caster_host = self.get_parameter('caster_host').get_parameter_value().string_value
-        caster_port = self.get_parameter('caster_port').get_parameter_value().integer_value
-        mountpoint = self.get_parameter('mountpoint').get_parameter_value().string_value
-        username = self.get_parameter('username').get_parameter_value().string_value
-        password = self.get_parameter('password').get_parameter_value().string_value
-  
-        self.um982 = UM982NtripDriver(port, baudrate)  
-        self.um982.set_caster(caster_host, caster_port, mountpoint, username, password)  
-        self.um982.start()
-              
+        self.port = self.get_parameter('port').get_parameter_value().string_value
+        self.baudrate = self.get_parameter('baudrate').get_parameter_value().integer_value
+        self.update_frequency = self.get_parameter('update_frequency').get_parameter_value().double_value
+        self.caster_host = self.get_parameter('caster_host').get_parameter_value().string_value
+        self.caster_port = self.get_parameter('caster_port').get_parameter_value().integer_value
+        self.mountpoint = self.get_parameter('mountpoint').get_parameter_value().string_value
+        self.username = self.get_parameter('username').get_parameter_value().string_value
+        self.password = self.get_parameter('password').get_parameter_value().string_value
         self.fix_pub        = self.create_publisher(NavSatFix, '/gps/fix',     10)
         self.utm_pub        = self.create_publisher(Odometry,  '/gps/utmpos',  10)
         self.ntrip_sta_pub  = self.create_publisher(String,  '/caster_status',  10)
-        self.pub_timer      = self.create_timer(1/update_frequency, self.gnss_pub_task)
-        self.ntrip_pub_timer= self.create_timer(1, self.ntrip_status)
-     
+                    
     
     def ntrip_status(self):
         if self.um982.rtcm_status is not None:
@@ -101,12 +93,22 @@ class UM982DriverROS2(Node):
             #self._ros_log_info(f"{heading}")
         
     def run(self):
-        if rclpy.ok():
-            rclpy.spin(self)
+        try:       
+            self.um982 = UM982NtripDriver(self.port, self.baudrate)  
+            self.um982.set_caster(self.caster_host, self.caster_port, self.mountpoint, self.username, self.password)  
+            self.pub_timer      = self.create_timer(1/self.update_frequency, self.gnss_pub_task)
+            self.ntrip_pub_timer= self.create_timer(1, self.ntrip_status)
+            while rclpy.ok():
+                self.um982.loop()
+                rclpy.spin(self)
+                time.sleep(0.001)
+        except Exception as e:
+            self._ros_log_error(e)
 
     def stop(self):
         self.um982.stop()
         self.pub_timer.cancel()
+        
     def _ros_log_debug(self, log_data):
         self.get_logger().debug(str(log_data))
 
@@ -130,11 +132,9 @@ def signal_handler(sig, frame):
         rclpy.shutdown()
     sys.exit(0)
 
-
 signal.signal(signal.SIGINT, signal_handler)
 rclpy.init()
 um982_driver = UM982DriverROS2()
-
 
 def main():
     um982_driver.run()

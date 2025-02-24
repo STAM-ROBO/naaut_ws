@@ -6,9 +6,9 @@ import math
 from pyproj import CRS, Transformer
 from .NtripReceiver import NtripReceiver
 
-class UM982NtripDriver(threading.Thread):
+class UM982NtripDriver:
     def __init__(self, port, baudrate=115200):
-        super().__init__(name="UM982DriverClass")
+        #super().__init__(name="UM982DriverClass")
         self.serial_port_name = port
         self.baudrate = baudrate
         self.caster_host = None
@@ -25,6 +25,17 @@ class UM982NtripDriver(threading.Thread):
         self.output_queue= queue.Queue()
         self.NMEA_EXPEND_CRC_TABLE = self._crc_table() 
         self.running=True
+        self.ntrip_data_queue = queue.Queue()
+        self.use_ntrip=False
+        
+        #enable NTRIP caster
+        self.use_ntrip=False        
+        if self.caster_host is not None and self.caster_port is not None and self.username is not None and self.password is not None and  self.mountpoint is not None:
+            self.use_ntrip=True     
+        if self.use_ntrip:
+            self.ntrip_receiver = NtripReceiver(self.caster_host, self.caster_port, self.username, self.password, self.mountpoint, self.ntrip_data_queue);
+            
+        self.serial_port = serial.Serial(port = self.serial_port_name, baudrate = self.baudrate, timeout=0.5)
         
     def set_caster(self, caster_host, caster_port, mountpoint, username, password):
         self.caster_host = caster_host
@@ -131,47 +142,30 @@ class UM982NtripDriver(threading.Thread):
     def stop(self):
         self.running=False
     
-    def run(self): 
-        use_ntrip=False        
-        if self.caster_host is not None and self.caster_port is not None and self.username is not None and self.password is not None and  self.mountpoint is not None:
-            use_ntrip=True            
+    def loop(self): 
+        #Send RTCM byte stream
+        if self.use_ntrip:
+            try:       
+                data = self.ntrip_data_queue.get(block=False)
+                self.rtcm_status=self.ntrip_receiver.status
+                if not data is None:
+                    self.serial_port.write(data)    
+            except Exception as e:
+                pass
         
-        #enable NTRIP caster
-        if use_ntrip:
-            ntrip_data_queue = queue.Queue()
-            self.ntrip_receiver=NtripReceiver(self.caster_host, self.caster_port, self.username, self.password, self.mountpoint, ntrip_data_queue);
-            
-        #monitor_thread = threading.Thread(target=self._print_data, daemon=True)
-        #monitor_thread.start()
-        
-        try:           
-            with serial.Serial(port = self.serial_port_name, baudrate = self.baudrate, timeout=0.5) as ser:   
-                while self.running:  
-                    #Send RTCM byte stream
-                    if use_ntrip:
-                        try:       
-                            data = ntrip_data_queue.get(block=False)
-                            self.rtcm_status=self.ntrip_receiver.status
-                            if not data is None:
-                                ser.write(data)    
-                        except Exception as e:
-                            pass
-                    
-                    # Read a line from the serial port
-                    frame = ser.readline().decode('utf-8')
-                    if not frame is None:
-                        if frame.startswith("#PVTSLNA") and self._nmea_expend_crc(frame):
-                            self.fix = self._PVTSLN_solver(frame)
-                            bestpos_hgt, bestpos_lat, bestpos_lon, bestpos_hgtstd, bestpos_latstd, bestpos_lonstd = self.fix
-                            self.transformer = self._wgs84_to_UTM(bestpos_lat, bestpos_lon)
-                            self.utmpos = self.transformer.transform(bestpos_lon, bestpos_lat)
-                            #print(self.fix)
-                        elif frame.startswith("$GNHPR") and self._nmea_crc(frame):
-                            self.orientation = self._GNHPR_solver(frame)
-                            #print(self.orientation)
-                        elif frame.startswith("#BESTNAVA") and self._nmea_expend_crc(frame):
-                            self.vel = self._BESTNAV_solver(frame)
-                            #print(self.vel)     
-                    time.sleep(0.001)                     
-        except serial.SerialException as e:
-            return None    
+        # Read a line from the serial port
+        frame = self.serial_port.readline().decode('utf-8')
+        if not frame is None:
+            if frame.startswith("#PVTSLNA") and self._nmea_expend_crc(frame):
+                self.fix = self._PVTSLN_solver(frame)
+                bestpos_hgt, bestpos_lat, bestpos_lon, bestpos_hgtstd, bestpos_latstd, bestpos_lonstd = self.fix
+                self.transformer = self._wgs84_to_UTM(bestpos_lat, bestpos_lon)
+                self.utmpos = self.transformer.transform(bestpos_lon, bestpos_lat)
+                #print(self.fix)
+            elif frame.startswith("$GNHPR") and self._nmea_crc(frame):
+                self.orientation = self._GNHPR_solver(frame)
+                #print(self.orientation)
+            elif frame.startswith("#BESTNAVA") and self._nmea_expend_crc(frame):
+                self.vel = self._BESTNAV_solver(frame)
+                #print(self.vel)                        
+ 
