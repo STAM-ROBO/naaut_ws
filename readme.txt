@@ -16,13 +16,37 @@ sudo apt install -Y ros-humble-robot-localization
 sudo apt install -Y ros-humble-tf2-tools
 sudo apt install -Y ros-humble-tf-transformations
 pip install pyserial pyproj
+pip install fastapi
+pip install uvicorn 
+pip install pyyaml
+
+
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.3/install.sh | bash
+close and reopen terminal, then:
+nvm install node
+cd ~/naaut_ws/src/robotics-ui/react/robotics_ui/
+npm install
+
 
 4) Build the workspace
 Use the --symlink-install option to be able to modify and run python code without rebuilding the workspace
 cd naaut_ws
 colcon build --symlik-install
 
+If needed, build and install the CH34x USB-to-serial adapter
+cd \naaut_ws\src\CH341SER_LINUX
+sudo make install
+
+also, add a udev rule to assign RW permissions to all tty devices to all users
+sudoedit /etc/udev/rules.d/50-ttyusb.rules
+add this line and save:
+KERNEL=="ttyUSB[0-9]*",NAME="tts/USB%n",SYMLINK+="%k",GROUP="uucp",MODE="0666"
+unplug/plug device
+
 *******************************
+create a python pkg:
+cd \naaut_ws\src
+ros2 pkg create --build-type ament_python --node-name my_node my_package
 
 Packages description
 

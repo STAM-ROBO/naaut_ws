@@ -25,6 +25,22 @@ def generate_launch_description():
         PythonLaunchDescriptionSource([os.path.join(get_package_share_directory('nav2_bringup'), 'launch'), '/navigation_launch.py']),
             launch_arguments={'params_file': os.path.join(robot_params_dir, "nav2_params.yaml")}.items(),
             )
+    
+    gnss_rtk_receiver = Node(
+         package='um982_driver',
+         executable='um982_driver_node',
+         name='um982_driver_node',
+         output='screen',
+         parameters=[{
+                    'serial_port' : 'dev/ttyUSBPIPPO',
+                    'baudrate' : 115200,
+                    'update_frequency' : 10.0,
+                    'caster_host' : "",
+                    'caster_port' : 2101,
+                    'mountpoint' : "GENO00ITA0",
+                    'username' : "ddigloria",
+                    'password' : "cogo-2023"
+                    }])
         
     robot_state_publisher_node=Node(
         package='robot_state_publisher',
@@ -45,10 +61,10 @@ def generate_launch_description():
                     'velocity_topic' : '/cmd_vel',
                     }])
 
-    motor_control_node=Node(
-        package='minolo',
-        executable='motor_controller',
-        name='minolo_motor_controller',
+    diff_propeller_controller=Node(
+        package='diff_propeller_controller',
+        executable='diff_propeller_controller',
+        name='diff_propeller_controller',
         output='screen',
         emulate_tty=True,
         parameters=[
@@ -71,8 +87,9 @@ def generate_launch_description():
     )
     
     return LaunchDescription([
-        motor_control_node,
-        motor_interface_node,
+        gnss_rtk_receiver,
+        diff_propeller_controller,
+        #motor_interface_node,
         robot_state_publisher_node,
         radio_teleop_receiver,
         #launch_nav2,

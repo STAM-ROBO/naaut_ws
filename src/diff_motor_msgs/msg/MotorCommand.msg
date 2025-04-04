@@ -1,0 +1,2 @@
+int32 left_rpm
+int32 right_rpm
