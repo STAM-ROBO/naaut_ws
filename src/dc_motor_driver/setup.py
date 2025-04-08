@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'diff_propeller_controller'
+package_name = 'dc_motor_driver'
 
 setup(
     name=package_name,
@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'diff_propeller_controller = diff_propeller_controller.diff_propeller_controller:main'
+            'dc_motor_driver = dc_motor_driver.driver:main'
         ],
     },
 )
