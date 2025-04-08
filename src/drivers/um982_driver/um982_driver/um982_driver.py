@@ -157,17 +157,22 @@ class UM982DriverROS2(Node):
     def run(self):
         self._ros_log_info( "Started")
      
-        self.um982 = UM982NtripDriver(self.port, self.baudrate)  
-        if self.um982.set_caster(self.caster_host, self.caster_port, self.mountpoint, self.username, self.password):
-            self._ros_log_info("NTRIP enabled")
+        try:
+            self.um982 = UM982NtripDriver(self.port, self.baudrate)  
+        except Exception as ex:
+            self._ros_log_error(ex)
+            return
         else:
-            self._ros_log_info("NTRIP disabled")
-     
-        while rclpy.ok():
-            self.um982.loop()
-            self.gnss_pub_task()
-            self.pub_ntrip_status()
-            time.sleep(0.005)    
+            if self.um982.set_caster(self.caster_host, self.caster_port, self.mountpoint, self.username, self.password):
+                self._ros_log_info("NTRIP enabled")
+            else:
+                self._ros_log_info("NTRIP disabled")
+        
+            while rclpy.ok():
+                self.um982.loop()
+                self.gnss_pub_task()
+                self.pub_ntrip_status()
+                time.sleep(0.005)    
     
     def _ros_log_debug(self, log_data):
         self.get_logger().debug(str(log_data), throttle_duration_sec=1)

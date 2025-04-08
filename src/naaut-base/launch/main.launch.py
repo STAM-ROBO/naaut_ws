@@ -71,12 +71,14 @@ def generate_launch_description():
             os.path.join(robot_params_dir, 'motor_controller_params.yaml')])
     
     motor_interface_node=Node(
-        package='minolo',
-        executable='motor_interface',
-        name='minolo_motor_interface',
+        package='dc_motor_driver',
+        executable='dc_motor_driver',
+        name='dc_motor_driver',
         output='screen',
-        parameters=[
-            os.path.join(robot_params_dir, 'motor_interface_params.yaml')])
+        parameters=[{
+                    'serial_port' : '/dev/serial/by-path/platform-3610000.usb-usb-0:2.4:1.0',
+                    'baudrate' : 115200
+                    }])
     
     localization_node=Node(
         package='robot_localization',
@@ -89,7 +91,7 @@ def generate_launch_description():
     return LaunchDescription([
         gnss_rtk_receiver,
         diff_propeller_controller,
-        #motor_interface_node,
+        motor_interface_node,
         robot_state_publisher_node,
         radio_teleop_receiver,
         #launch_nav2,
