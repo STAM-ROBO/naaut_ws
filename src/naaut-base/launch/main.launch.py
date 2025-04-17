@@ -114,9 +114,9 @@ def generate_launch_description():
     return LaunchDescription([ 
         #interactive_wf_node,
         motor_interface_node,
-        robot_state_publisher_node,
-        map_odom_tf_pub,
-        robot_localization_cmd,
+        #robot_state_publisher_node,
+        #map_odom_tf_pub,
+        #robot_localization_cmd,
         #navigation2_cmd,
-        gnss_rtk_receiver
+        #gnss_rtk_receiver
     ])
