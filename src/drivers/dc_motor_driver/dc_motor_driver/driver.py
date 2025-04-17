@@ -52,7 +52,7 @@ class dc_driver_node(Node):
                 while rclpy.ok():  
                     serial_packet = ser.read()
                     recv_unpacked_data = struct.unpack('B',serial_packet)
-                    self.battery_volt=float(recv_unpacked_data[0])/10.0
+                    self.battery_volt=float(recv_unpacked_data[0])/10.0/1.024
                     time.sleep(0.01)                                          
                     cmd_speed_l=np.clip(self.cmd_speed_l, -127, 127)
                     cmd_speed_r=np.clip(self.cmd_speed_r, -127, 127)

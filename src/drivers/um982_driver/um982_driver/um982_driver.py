@@ -54,11 +54,15 @@ class UM982DriverROS2(Node):
         self.utm_datumx=0
         self.utm_datumy=0
     
-    def pub_ntrip_status(self):
-        if self.um982.rtcm_status is not None:
-            msg=String()
-            msg.data=self.um982.rtcm_status
-            self.ntrip_sta_pub.publish(msg)
+    def pub_sys_status(self):
+        msg=String()
+        fix_sta_msg=String()
+        
+        msg.data=self.um982.rtcm_status
+        fix_sta_msg.data=self.um982.fix_type
+        
+        self.fix_sta_pub.publish(fix_sta_msg)
+        self.ntrip_sta_pub.publish(msg)
 
     def gnss_pub_task(self):
         if self.um982.fix is not None and self.um982.vel is not None and self.um982.orientation is not None:  
@@ -130,14 +134,9 @@ class UM982DriverROS2(Node):
             odom_msg.twist.covariance[0]     = float(vel_east_std)**2
             odom_msg.twist.covariance[7]     = float(vel_north_std)**2
             odom_msg.twist.covariance[14]    = float(vel_ver_std)**2
-            
-            fix_sta_msg=String()
-            fix_sta_msg.data=self.um982.fix_type            
-            
+                        
             #publish all messages
-            self.fix_sta_pub.publish(fix_sta_msg)
             self.fix_pub.publish(fix_msg)
-            #self.orientation_pub.publish(imu_message) 
             self.odometry_topic_pub.publish(odom_msg)
             self.publish_transform_from_odometry(odom_msg)
     
@@ -171,7 +170,7 @@ class UM982DriverROS2(Node):
             while rclpy.ok():
                 self.um982.loop()
                 self.gnss_pub_task()
-                self.pub_ntrip_status()
+                self.pub_sys_status()
                 time.sleep(0.005)    
     
     def _ros_log_debug(self, log_data):

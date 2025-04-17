@@ -14,8 +14,8 @@ class UM982NtripDriver():
         self.orientation    = None
         self.vel            = None
         self.utmpos         = None    
-        self.rtcm_status    = None  
-        self.fix_type = None
+        self.rtcm_status    = "None"  
+        self.fix_type = "None"
         self.output_queue= queue.Queue()
         self.NMEA_EXPEND_CRC_TABLE = self._crc_table() 
         self.running=True

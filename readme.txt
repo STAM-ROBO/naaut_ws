@@ -10,23 +10,15 @@ https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debs.html
 
 3) Install prerequistes 
 Please, add your prerequistes if your Packages needs them.
-sudo apt install -Y ros-humble-navigation2
-sudo apt install -Y ros-humble-nav2-bringup
-sudo apt install -Y ros-humble-robot-localization
-sudo apt install -Y ros-humble-tf2-tools
-sudo apt install -Y ros-humble-tf-transformations
+sudo apt install -y ros-humble-navigation2
+sudo apt install -y ros-humble-nav2-bringup
+sudo apt install -y ros-humble-robot-localization
+sudo apt install -y ros-humble-tf2-tools
+sudo apt install -y ros-humble-tf-transformations
 pip install pyserial pyproj
 pip install fastapi
 pip install uvicorn 
 pip install pyyaml
-
-
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.3/install.sh | bash
-close and reopen terminal, then:
-nvm install node
-cd ~/naaut_ws/src/robotics-ui/react/robotics_ui/
-npm install
-
 
 4) Build the workspace
 Use the --symlink-install option to be able to modify and run python code without rebuilding the workspace

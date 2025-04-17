@@ -1,74 +1,85 @@
+# Copyright (c) 2018 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
 
 from ament_index_python.packages import get_package_share_directory
+
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
-from launch.actions import IncludeLaunchDescription
-from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.conditions import IfCondition
+from nav2_common.launch import RewrittenYaml
 from launch_ros.actions import Node
-from launch_ros.actions import LifecycleNode
 
 
 def generate_launch_description():
-    main_pkg_name="naaut-base"
+    # Get the launch directory
+    bringup_dir = get_package_share_directory('nav2_bringup')
+    gps_wpf_dir = get_package_share_directory("gps_waypoint_follower_sim")
+    launch_dir = os.path.join(gps_wpf_dir, 'launch')
+    params_dir = os.path.join(gps_wpf_dir, "config")
+    nav2_params = os.path.join(params_dir, "nav2_no_map_params.yaml")
+    configured_params = RewrittenYaml(
+        source_file=nav2_params, root_key="", param_rewrites="", convert_types=True
+    )
+
+    gazebo_cmd = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(launch_dir, 'simulation.launch.py')
+        )
+    )
     
-    robot_params_dir=os.path.join(get_package_share_directory(main_pkg_name),'params')
-    rviz_config_dir = os.path.join(get_package_share_directory('nav2_bringup'), 'rviz', 'nav2_default_view.rviz')
+    mapviz_cmd = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(launch_dir, 'mapviz.launch.py'))
+    )
     
-    #Load URDF into memory
-    urdf_file = os.path.join(get_package_share_directory(main_pkg_name), 'urdf', "robot.urdf")   
-    with open(urdf_file, 'r') as infp:
-        robot_description = infp.read()
+    navigation2_cmd = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(bringup_dir, "launch", "navigation_launch.py")
+        ),
+        launch_arguments={
+            "use_sim_time": "False",
+            "params_file": configured_params,
+            "autostart": "True",
+        }.items(),
+    )
     
-    launch_nav2=IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([os.path.join(get_package_share_directory('nav2_bringup'), 'launch'), '/navigation_launch.py']),
-            launch_arguments={'params_file': os.path.join(robot_params_dir, "nav2_params.yaml")}.items(),
-            )
+    interactive_wf_node = Node(
+        package="gps_waypoint_follower_sim",
+        executable="interactive_waypoint_follower",
+        name='interactive_wf'
+    )
+    
+    robot_localization_cmd = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(launch_dir, 'ekf_navsat.launch.py'))
+    )
     
     gnss_rtk_receiver = Node(
-         package='um982_driver',
-         executable='um982_driver_node',
-         name='um982_driver_node',
-         output='screen',
-         parameters=[{
-                    'serial_port' : 'dev/ttyUSBPIPPO',
-                    'baudrate' : 115200,
-                    'update_frequency' : 10.0,
-                    'caster_host' : "",
-                    'caster_port' : 2101,
-                    'mountpoint' : "GENO00ITA0",
-                    'username' : "ddigloria",
-                    'password' : "cogo-2023"
-                    }])
-        
-    robot_state_publisher_node=Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
+        package='um982_driver',
+        executable='um982_driver_node',
+        name='um982_driver_node',
         output='screen',
         parameters=[{
-            'robot_description': robot_description,
-            'rate': 20, }])
-    
-    radio_teleop_receiver = Node(
-         package='teleop_receiver',
-         executable='receiver',
-         name='radio_teleop_receiver',
-         output='screen',
-         parameters=[{
-                    'serial_port' : '/dev/serial/by-id/usb-Silicon_Labs_CP2102N_USB_to_UART_Bridge_Controller_709a94ae5324ed11926c94e8f9a97352-if00-port0',
-                    'baudrate' : 115200,
-                    'velocity_topic' : '/cmd_vel',
-                    }])
-
-    diff_propeller_controller=Node(
-        package='diff_propeller_controller',
-        executable='diff_propeller_controller',
-        name='diff_propeller_controller',
-        output='screen',
-        emulate_tty=True,
-        parameters=[
-            os.path.join(robot_params_dir, 'motor_controller_params.yaml')])
+            'orientation_topic':'/imu',
+            'imu_link':'imu_link',
+            'fix_topic':'/gps/fix',
+            'gnss_link':'gps_link',
+                }])
     
     motor_interface_node=Node(
         package='dc_motor_driver',
@@ -80,19 +91,32 @@ def generate_launch_description():
                     'baudrate' : 115200
                     }])
     
-    localization_node=Node(
-        package='robot_localization',
-        executable='ekf_node',
-        name='ekf_filter_node',
-        output='screen',
-        parameters=[os.path.join(robot_params_dir, 'state_estimation_params.yaml')],       
+    map_odom_tf_pub = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name="map_odom_tf_pub",
+        arguments=["0", "0", "0", "0", "0", "0", "map", "odom"]
     )
     
-    return LaunchDescription([
-        gnss_rtk_receiver,
-        diff_propeller_controller,
+    #Load URDF into memory
+    urdf_file = os.path.join(get_package_share_directory("naaut-base"), 'urdf', "robot.urdf")   
+    with open(urdf_file, 'r') as infp:
+        robot_description = infp.read()
+        
+    robot_state_publisher_node=Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        output='screen',
+        parameters=[{
+            'robot_description': robot_description,
+            'rate': 20, }])
+
+    return LaunchDescription([ 
+        #interactive_wf_node,
         motor_interface_node,
         robot_state_publisher_node,
-        radio_teleop_receiver,
-        #launch_nav2,
-   ])
+        map_odom_tf_pub,
+        robot_localization_cmd,
+        #navigation2_cmd,
+        gnss_rtk_receiver
+    ])
