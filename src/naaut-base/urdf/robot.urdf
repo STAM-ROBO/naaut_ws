@@ -1,0 +1,103 @@
+<?xml version="1.0" ?>
+<robot name="diglobot2">
+
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <box size="0.48 0.3 0.01"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0.15 0 0.12"/>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+  </link>
+  
+  <link name="imu_link">
+    <visual>
+      <geometry>
+        <box size="0.05 0.05 0.05"/>
+      </geometry>
+            <material name="white">
+        <color rgba="0 0 1 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="gps_link">
+    <visual>
+      <geometry>
+        <box size="0.05 0.05 0.05"/>
+      </geometry>
+            <material name="white">
+        <color rgba="1 0 0 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="lfloater">
+    <visual>
+      <geometry>
+        <cylinder length="2.8" radius="0.18"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <material name="white">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="rfloater">
+    <visual>
+      <geometry>
+        <cylinder length="2.8" radius="0.18"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <material name="white">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="scanner_link">
+    <visual>
+      <geometry>
+        <cylinder length="0.02" radius="0.025"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0.0 0 0.0"/>
+      <material name="blue">
+        <color rgba="0 0 1 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="base_to_lfloater" type="fixed">
+    <parent link="base_link"/>
+    <child link="lfloater"/>
+    <origin xyz="0 0.8 0.085" rpy="1.5708 0 1.5708"/>
+  </joint>
+  
+  <joint name="base_to_rfloater" type="fixed">
+    <parent link="base_link"/>
+    <child link="rfloater"/>
+    <origin xyz="0 -0.8 0.085" rpy="-1.5708 0 1.5708"/>
+  </joint>
+
+  <joint name="base_to_scanner" type="fixed">
+    <parent link="base_link"/>
+    <child link="scanner_link"/>
+    <origin xyz="0.045 0 1.0" rpy="0 0 -1.57079"/>
+  </joint>
+
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+    <origin xyz="0.21 -0.02 0.15" rpy="0 0 0"/>
+  </joint>
+
+    <joint name="gps_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="gps_link"/>
+    <origin xyz="0.21 -0.02 0.35" rpy="0 0 0"/>
+  </joint>
+</robot>

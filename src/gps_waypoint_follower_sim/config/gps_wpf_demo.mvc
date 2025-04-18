@@ -1,0 +1,95 @@
+capture_directory: "~"
+fixed_frame: map
+target_frame: map
+fix_orientation: true
+rotate_90: true
+enable_antialiasing: true
+show_displays: true
+show_status_bar: true
+show_capture_tools: true
+window_width: 950
+window_height: 718
+view_scale: 0.866784036
+offset_x: 26.870306
+offset_y: 92.7458954
+use_latest_transforms: true
+background: "#a0a0a4"
+image_transport: raw
+displays:
+  - type: mapviz_plugins/tile_map
+    name: new display
+    config:
+      visible: true
+      collapsed: true
+      custom_sources:
+        - base_url: http://localhost:8080/wmts/gm_layer/gm_grid/{level}/{x}/{y}.png
+          max_zoom: 19
+          name: gmaps19
+          type: wmts
+      bing_api_key: ""
+      source: gmaps19
+  - type: mapviz_plugins/path
+    name: new display
+    config:
+      visible: true
+      collapsed: true
+      topic: /plan
+      color: "#ffff00"
+      qos_depth: 10
+      qos_history: 1
+      qos_reliability: 1
+      qos_durability: 2
+  - type: mapviz_plugins/odometry
+    name: new display
+    config:
+      visible: true
+      collapsed: true
+      topic: /odometry/global
+      color: "#00ff00"
+      draw_style: arrows
+      position_tolerance: 0
+      buffer_size: 1
+      show_laps: false
+      show_covariance: true
+      show_all_covariances: false
+      static_arrow_sizes: true
+      arrow_size: 51
+      show_timestamps: 0
+      qos_depth: 10
+      qos_history: 1
+      qos_reliability: 1
+      qos_durability: 2
+  - type: mapviz_plugins/point_click_publisher
+    name: new display
+    config:
+      visible: true
+      collapsed: true
+      topic: clicked_point
+      output_frame: wgs84
+  - type: mapviz_plugins/navsat
+    name: new display
+    config:
+      visible: true
+      collapsed: true
+      topic: /gps/fix
+      color: "#ff0000"
+      draw_style: points
+      position_tolerance: 1
+      buffer_size: 0
+      qos_depth: 10
+      qos_history: 1
+      qos_reliability: 1
+      qos_durability: 2
+  - type: mapviz_plugins/occupancy_grid
+    name: new display
+    config:
+      visible: false
+      collapsed: true
+      alpha: 1
+      topic: /global_costmap/costmap
+      update: true
+      scheme: costmap
+      qos_depth: 10
+      qos_history: 1
+      qos_reliability: 1
+      qos_durability: 2
