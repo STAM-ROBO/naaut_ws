@@ -11,6 +11,7 @@ import math
 from tf2_ros import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped
 from tf_transformations import quaternion_from_euler, euler_from_quaternion
+from geometry_msgs.msg import Pose
 
 class naaut_simulator(Node):
     def __init__(self):
@@ -26,18 +27,19 @@ class naaut_simulator(Node):
         self.fix_topic = self.get_parameter('fix_topic').get_parameter_value().string_value
         self.gnss_link = self.get_parameter('gnss_link').get_parameter_value().string_value
         self.odometry_topic = self.get_parameter('odometry_topic').get_parameter_value().string_value
+    
         
         #sim params
-        self.time_step = 0.05
+        self.time_step = 0.02
         self.mass = 80.0
 
         # 1/2 * water_density * area_in_water * Cd
-        self.drag_coefficient_x = 0.5 * 1000 * (3.14 * 0.26**2) * 0.1
-        self.drag_coefficient_y = 0.5 * 1000 * (3.14 * 0.26**2) * 0.3
+        self.drag_coefficient_x = 0.5 * 1000 * (3.14 * 0.26**2) * 0.2
+        self.drag_coefficient_y = 0.5 * 1000 * (3.14 * 0.26**2) * 5.0
         self.drag_coefficient = np.array([self.drag_coefficient_x,self.drag_coefficient_y])
         
         #rectangular vessel
-        self.rot_drag=0.2
+        self.rot_drag=0.15
         self.vessel_inertia = (1 / 12) * self.mass * (2**2 + 2**2)
         
         self.x_vel=0.0
@@ -54,13 +56,13 @@ class naaut_simulator(Node):
         self.cmd_vel_sub = self.create_subscription(Twist,'cmd_vel', self.get_cmd_vel, 10)
         self.odometry_topic_pub  = self.create_publisher(Odometry,  self.odometry_topic,  10)                
         self.tf_broadcaster = TransformBroadcaster(self)
-        
+       
         run_sim_loop_thread = threading.Thread(target=self.run_sim_loop, daemon=True)
         run_sim_loop_thread.start()
     
     def get_cmd_vel(self,msg):
-        self.x_vel=msg.linear.x
-        self.rz_vel=msg.angular.z  
+        self.x_vel=msg.linear.x * 5.0
+        self.rz_vel=msg.angular.z  * 15.0
                
     def run_sim_loop(self):
         self.get_logger().info("Starting simu loop")
@@ -71,38 +73,42 @@ class naaut_simulator(Node):
         pitch=0.0
         roll= 0.0
         timestamp=0.0
+        thr_filt = 0.0
                        
         while rclpy.ok():  
             torque = self.rz_vel  
-            thrust = self.x_vel     
-            
+            thrust = self.x_vel               
             angular_acceleration = torque / self.vessel_inertia
             heading_dot += angular_acceleration * self.time_step - heading_dot * self.rot_drag
-            heading += heading_dot * self.time_step
-                        
+            heading += heading_dot * self.time_step              
+            
             thrust_vect=  np.array([np.cos(heading), np.sin(heading)]) * thrust
             
-            drag_force = self.drag_coefficient * lin_vel
+            # drag orientato come il vettore velocità
+            drag_force = self.drag_coefficient[0] * lin_vel
 
             net_force = thrust_vect - drag_force
             acceleration = net_force / self.mass
             lin_vel += acceleration * self.time_step
             lin_pos += lin_vel * self.time_step
             
-            roll = self.roll_amp*math.sin(2 * math.pi * self.roll_freq * timestamp)
-            pitch = self.pitch_amp*math.sin(2 * math.pi * self.pitch_freq * timestamp)
+            alpha = 0.05
+            thr_filt = alpha * thrust + (1-alpha)* thr_filt
             
-            self.pub_simu_results(heading, pitch, roll, lin_pos, lin_vel)
+            roll = self.roll_amp*math.sin(2 * math.pi * self.roll_freq * timestamp)
+            pitch = self.pitch_amp*math.sin(2 * math.pi * self.pitch_freq * timestamp) - thr_filt * 0.01
+                        
+            self.pub_simu_results(heading, pitch, roll, lin_pos, lin_vel, thrust_vect)
             timestamp+=self.time_step
             
             time.sleep(self.time_step)           
         self.get_logger().info("Finished sim")
     
-    def pub_simu_results(self, heading, pitch, roll,  xy_location, xy_velocity):          
+    def pub_simu_results(self, heading, pitch, roll,  xy_location, xy_velocity, thrust):          
         this_time = self.get_clock().now().to_msg()
         
         quaternion = quaternion_from_euler(roll, pitch, heading)
-        
+            
         #Publish GPS Fix Data
         #fix_msg = NavSatFix()
         #fix_msg.header.stamp = this_time

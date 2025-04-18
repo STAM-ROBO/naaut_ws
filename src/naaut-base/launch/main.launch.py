@@ -11,11 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import os
-
 from ament_index_python.packages import get_package_share_directory
-
 from launch import LaunchDescription
 from launch.substitutions import LaunchConfiguration
 from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
@@ -28,10 +25,13 @@ from launch_ros.actions import Node
 def generate_launch_description():
     # Get the launch directory
     bringup_dir = get_package_share_directory('nav2_bringup')
-    gps_wpf_dir = get_package_share_directory("gps_waypoint_follower_sim")
-    launch_dir = os.path.join(gps_wpf_dir, 'launch')
-    params_dir = os.path.join(gps_wpf_dir, "config")
+    
+    launch_dir = os.path.join(get_package_share_directory("gps_waypoint_follower_sim"), 'launch')
+    
+    params_dir = os.path.join(get_package_share_directory("naaut-base"), "params")
+    
     nav2_params = os.path.join(params_dir, "nav2_no_map_params.yaml")
+    
     configured_params = RewrittenYaml(
         source_file=nav2_params, root_key="", param_rewrites="", convert_types=True
     )
@@ -119,11 +119,11 @@ def generate_launch_description():
 
     return LaunchDescription([ 
         #interactive_wf_node,
-        #motor_interface_node,
+        motor_interface_node,
         robot_state_publisher_node,
         map_odom_tf_pub,
         #robot_localization_cmd,
-        #navigation2_cmd,
+        navigation2_cmd,
         #gnss_rtk_receiver,
         naaut_simulator
     ])
