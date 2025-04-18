@@ -20,7 +20,7 @@ class naaut_simulator(Node):
         self.declare_parameter('imu_link','imu_link')
         self.declare_parameter('fix_topic','/gps/fix')
         self.declare_parameter('gnss_link','gps_link')
-        self.declare_parameter('odometry_topic','/odometry/gps')
+        self.declare_parameter('odometry_topic','/odom')
         self.orientation_topic = self.get_parameter('orientation_topic').get_parameter_value().string_value
         self.imu_link = self.get_parameter('imu_link').get_parameter_value().string_value
         self.fix_topic = self.get_parameter('fix_topic').get_parameter_value().string_value
@@ -41,8 +41,11 @@ class naaut_simulator(Node):
         self.x_vel=0.0
         self.rz_vel=0.0     
         
-        self.roll_freq=2.0   
+        self.roll_freq=0.8   
         self.roll_amp=np.radians(10)
+        
+        self.pitch_freq=0.3   
+        self.pitch_amp=np.radians(2)
         
         self.orientation_pub  = self.create_publisher(Imu, self.orientation_topic,  10)
         self.fix_pub        = self.create_publisher(NavSatFix, self.fix_topic,  10)
@@ -86,6 +89,8 @@ class naaut_simulator(Node):
             lin_pos += lin_vel * self.time_step
             
             roll = self.roll_amp*math.sin(2 * math.pi * self.roll_freq * timestamp)
+            pitch = self.pitch_amp*math.sin(2 * math.pi * self.pitch_freq * timestamp)
+            
             self.pub_simu_results(heading, pitch, roll, lin_pos, lin_vel)
             timestamp+=self.time_step
             

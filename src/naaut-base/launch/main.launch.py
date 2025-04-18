@@ -110,13 +110,20 @@ def generate_launch_description():
         parameters=[{
             'robot_description': robot_description,
             'rate': 20, }])
+    
+    naaut_simulator = Node(
+        package="naaut_sim",
+        executable="run_sim",
+        name="naaut_sim",
+    )
 
     return LaunchDescription([ 
         #interactive_wf_node,
-        motor_interface_node,
-        #robot_state_publisher_node,
-        #map_odom_tf_pub,
+        #motor_interface_node,
+        robot_state_publisher_node,
+        map_odom_tf_pub,
         #robot_localization_cmd,
         #navigation2_cmd,
-        #gnss_rtk_receiver
+        #gnss_rtk_receiver,
+        naaut_simulator
     ])
