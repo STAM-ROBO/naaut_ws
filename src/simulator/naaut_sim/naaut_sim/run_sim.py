@@ -28,24 +28,26 @@ class naaut_simulator(Node):
         self.odometry_topic = self.get_parameter('odometry_topic').get_parameter_value().string_value
         
         #sim params
-        self.time_step = 0.1
-        self.mass = 150.0
+        self.time_step = 0.05
+        self.mass = 80.0
 
         # 1/2 * water_density * area_in_water * Cd
-        self.drag_coefficient = 0.5 * 1000 * (3.14 * 0.26**2) * 0.2
+        self.drag_coefficient_x = 0.5 * 1000 * (3.14 * 0.26**2) * 0.1
+        self.drag_coefficient_y = 0.5 * 1000 * (3.14 * 0.26**2) * 0.3
+        self.drag_coefficient = np.array([self.drag_coefficient_x,self.drag_coefficient_y])
         
         #rectangular vessel
-        self.rot_drag=0.005
+        self.rot_drag=0.2
         self.vessel_inertia = (1 / 12) * self.mass * (2**2 + 2**2)
         
         self.x_vel=0.0
         self.rz_vel=0.0     
         
-        self.roll_freq=0.8   
-        self.roll_amp=np.radians(10)
+        self.roll_freq=0.3   
+        self.roll_amp=np.radians(1.5)
         
-        self.pitch_freq=0.3   
-        self.pitch_amp=np.radians(2)
+        self.pitch_freq=0.1   
+        self.pitch_amp=np.radians(0.9)
         
         self.orientation_pub  = self.create_publisher(Imu, self.orientation_topic,  10)
         self.fix_pub        = self.create_publisher(NavSatFix, self.fix_topic,  10)
@@ -73,15 +75,14 @@ class naaut_simulator(Node):
         while rclpy.ok():  
             torque = self.rz_vel  
             thrust = self.x_vel     
-            angular_acceleration = torque / self.vessel_inertia
-            heading_dot += angular_acceleration * self.time_step - heading_dot*self.rot_drag
-            heading += heading_dot * self.time_step
-            thrust_vect= np.array([np.cos(heading), np.sin(heading)])*thrust
             
-            if np.linalg.norm(lin_vel) > 0:
-                drag_force = self.drag_coefficient * np.linalg.norm(lin_vel) * lin_vel
-            else:
-                drag_force = np.array([0.0, 0.0])
+            angular_acceleration = torque / self.vessel_inertia
+            heading_dot += angular_acceleration * self.time_step - heading_dot * self.rot_drag
+            heading += heading_dot * self.time_step
+                        
+            thrust_vect=  np.array([np.cos(heading), np.sin(heading)]) * thrust
+            
+            drag_force = self.drag_coefficient * lin_vel
 
             net_force = thrust_vect - drag_force
             acceleration = net_force / self.mass
@@ -100,6 +101,8 @@ class naaut_simulator(Node):
     def pub_simu_results(self, heading, pitch, roll,  xy_location, xy_velocity):          
         this_time = self.get_clock().now().to_msg()
         
+        quaternion = quaternion_from_euler(roll, pitch, heading)
+        
         #Publish GPS Fix Data
         #fix_msg = NavSatFix()
         #fix_msg.header.stamp = this_time
@@ -116,7 +119,6 @@ class naaut_simulator(Node):
         imu_message = Imu()
         imu_message.header.frame_id = self.imu_link
         imu_message.header.stamp = self.get_clock().now().to_msg()    
-        quaternion = quaternion_from_euler(math.radians(0), math.radians(0), math.radians(heading))
         imu_message.orientation.x = quaternion[0]
         imu_message.orientation.y = quaternion[1]
         imu_message.orientation.z = quaternion[2]
@@ -131,7 +133,6 @@ class naaut_simulator(Node):
         odom_msg.pose.pose.position.x = xy_location[0]
         odom_msg.pose.pose.position.y = xy_location[1]
         odom_msg.pose.pose.position.z = 0.0
-        quaternion = quaternion_from_euler(math.radians(roll), math.radians(pitch), math.radians(heading))
         odom_msg.pose.pose.orientation.x = quaternion[0]
         odom_msg.pose.pose.orientation.y = quaternion[1]
         odom_msg.pose.pose.orientation.z = quaternion[2]
