@@ -39,7 +39,7 @@ class naaut_simulator(Node):
         self.drag_coefficient = np.array([self.drag_coefficient_x,self.drag_coefficient_y])
         
         #rectangular vessel
-        self.rot_drag=0.15
+        self.rot_drag=0.10
         self.vessel_inertia = (1 / 12) * self.mass * (2**2 + 2**2)
         
         self.x_vel=0.0
@@ -62,7 +62,7 @@ class naaut_simulator(Node):
     
     def get_cmd_vel(self,msg):
         self.x_vel=msg.linear.x * 5.0
-        self.rz_vel=msg.angular.z  * 15.0
+        self.rz_vel=msg.angular.z  * 40.0
                
     def run_sim_loop(self):
         self.get_logger().info("Starting simu loop")
@@ -134,8 +134,8 @@ class naaut_simulator(Node):
         #publish odometry with gps and UTM
         odom_msg = Odometry()
         odom_msg.header.stamp = this_time
-        odom_msg.header.frame_id = 'map'
-        odom_msg.child_frame_id  = 'gps_link'
+        odom_msg.header.frame_id = 'odom'
+        odom_msg.child_frame_id  = 'base_link'
         odom_msg.pose.pose.position.x = xy_location[0]
         odom_msg.pose.pose.position.y = xy_location[1]
         odom_msg.pose.pose.position.z = 0.0
@@ -151,13 +151,9 @@ class naaut_simulator(Node):
         odom_msg.twist.twist.linear.y    = xy_velocity[1]
         odom_msg.twist.twist.linear.z    = 0.0
         odom_msg.twist.covariance        = [0.0] * 36
-       
-        #publish all messages
-        self.odometry_topic_pub.publish(odom_msg)
-        self.publish_transform_from_odometry(odom_msg)
-    
-    def publish_transform_from_odometry(self, odom_msg):
+        
         t = TransformStamped()
+        t.header.stamp = this_time
         t.header.frame_id = "odom"
         t.child_frame_id = "base_link"
         t.transform.translation.x = odom_msg.pose.pose.position.x
@@ -167,7 +163,11 @@ class naaut_simulator(Node):
         t.transform.rotation.y = odom_msg.pose.pose.orientation.y
         t.transform.rotation.z = odom_msg.pose.pose.orientation.z
         t.transform.rotation.w = odom_msg.pose.pose.orientation.w
-        self.tf_broadcaster.sendTransform(t)    
+        
+        #publish all messages
+        self.odometry_topic_pub.publish(odom_msg)
+        self.tf_broadcaster.sendTransform(t)   
+
 
     def shutdown(self):
         self.get_logger().info("Shutting down node.")
