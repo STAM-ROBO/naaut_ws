@@ -24,12 +24,9 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     # Get the launch directory
-    bringup_dir = get_package_share_directory('nav2_bringup')
-    
+    bringup_dir = get_package_share_directory('nav2_bringup')    
     launch_dir = os.path.join(get_package_share_directory("gps_waypoint_follower_sim"), 'launch')
-    
     params_dir = os.path.join(get_package_share_directory("naaut-base"), "params")
-    
     nav2_params = os.path.join(params_dir, "nav2_no_map_params.yaml")
     
     configured_params = RewrittenYaml(
@@ -98,6 +95,25 @@ def generate_launch_description():
         arguments=["0", "0", "0", "0", "0", "0", "map", "odom"]
     )
     
+    map_origin_tf_pub = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name="map_origin_tf_pub",
+        arguments=["0", "0", "0", "0", "0", "0", "map", "origin"]
+    )
+    
+    initialize_mapviz_origin = Node(
+        package='swri_transform_util',
+        executable='initialize_origin.py',
+        name='initialize_origin',
+        parameters=[{
+            'local_xy_frame': 'map',
+            'local_xy_navsatfix_topic': 'gps/fix',
+            'local_xy_origin': 'auto',
+            #'local_xy_origins' : "[{ 'name': MDRS, 'latitude': 38.40630, 'longitude': -110.79201, 'altitude': 0.0, 'heading': 0.0}]"
+            }]
+    )
+    
     #Load URDF into memory
     urdf_file = os.path.join(get_package_share_directory("naaut-base"), 'urdf', "robot.urdf")   
     with open(urdf_file, 'r') as infp:
@@ -122,7 +138,9 @@ def generate_launch_description():
         #motor_interface_node,
         robot_state_publisher_node,
         map_odom_tf_pub,
+        #map_origin_tf_pub,
         #robot_localization_cmd,
+        initialize_mapviz_origin,
         navigation2_cmd,
         #gnss_rtk_receiver,
         naaut_simulator
