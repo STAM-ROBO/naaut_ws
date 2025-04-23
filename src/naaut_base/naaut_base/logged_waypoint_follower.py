@@ -7,10 +7,9 @@ import sys
 import time
 from robot_localization.srv import FromLL
 from rclpy.node import Node
-from scripts.utils.gps_utils import latLonYaw2Geopose
+from naaut_base.utils.gps_utils import latLonYaw2Geopose
 from nav2_msgs.action import FollowWaypoints
 from geometry_msgs.msg import PoseStamped
-
 
 class YamlWaypointParser:
     """

@@ -27,9 +27,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'logged_waypoint_follower = scripts.logged_waypoint_follower:main',
-            'interactive_waypoint_follower = scripts.interactive_waypoint_follower:main',
-            'gps_waypoint_logger = scripts.gps_waypoint_logger:main'
-        ],
+            
+                ],
     },
 )

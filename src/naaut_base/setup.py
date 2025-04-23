@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 import os
 from glob import glob
 
-package_name = 'naaut-base'
+package_name = 'naaut_base'
 
 setup(
     name=package_name,
@@ -23,9 +23,9 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'logged_waypoint_follower = scripts.logged_waypoint_follower:main',
-            'interactive_waypoint_follower = scripts.interactive_waypoint_follower:main',
-            'gps_waypoint_logger = scripts.gps_waypoint_logger:main'
+            'logged_waypoint_follower = naaut_base.logged_waypoint_follower:main',
+            'interactive_waypoint_follower = naaut_base.interactive_waypoint_follower:main',
+            'gps_waypoint_logger = naaut_base.gps_waypoint_logger:main'
         ],
     },
 )

@@ -6,7 +6,7 @@ import os
 import sys
 import tkinter as tk
 from tkinter import messagebox
-from scripts.utils.gps_utils import euler_from_quaternion
+from naaut_base.utils.gps_utils import euler_from_quaternion
 
 
 class GpsGuiLogger(tk.Tk, Node):
@@ -32,7 +32,7 @@ class GpsGuiLogger(tk.Tk, Node):
 
         self.gps_subscription = self.create_subscription(
             NavSatFix,
-            '/gps/fix',
+            '/clicked_point',
             self.gps_callback,
             1
         )
@@ -100,9 +100,6 @@ class GpsGuiLogger(tk.Tk, Node):
             messagebox.showerror(
                 "Error", f"Error logging position: {str(ex)}")
             return
-
-        messagebox.showinfo("Info", "Waypoint logged succesfully")
-
 
 def main(args=None):
     rclpy.init(args=args)

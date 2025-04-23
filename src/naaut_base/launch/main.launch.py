@@ -26,7 +26,7 @@ def generate_launch_description():
     # Get the launch directory
     bringup_dir = get_package_share_directory('nav2_bringup')    
     launch_dir = os.path.join(get_package_share_directory("gps_waypoint_follower_sim"), 'launch')
-    params_dir = os.path.join(get_package_share_directory("naaut-base"), "params")
+    params_dir = os.path.join(get_package_share_directory("naaut_base"), "params")
     nav2_params = os.path.join(params_dir, "nav2_no_map_params.yaml")
     
     configured_params = RewrittenYaml(
@@ -115,7 +115,7 @@ def generate_launch_description():
     )
     
     #Load URDF into memory
-    urdf_file = os.path.join(get_package_share_directory("naaut-base"), 'urdf', "robot.urdf")   
+    urdf_file = os.path.join(get_package_share_directory("naaut_base"), 'urdf', "robot.urdf")   
     with open(urdf_file, 'r') as infp:
         robot_description = infp.read()
         

@@ -35,7 +35,7 @@ class naaut_simulator(Node):
         self.datum_lon=8.947172
         
         #sim params
-        self.time_step = 0.02
+        self.time_step = 0.05
         self.mass = 80.0
 
         # 1/2 * water_density * area_in_water * Cd
@@ -47,12 +47,8 @@ class naaut_simulator(Node):
         self.rot_drag=0.10
         self.vessel_inertia = (1 / 12) * self.mass * (2**2 + 2**2)
         
-        self.x_vel=0.0
-        self.rz_vel=0.0     
-        
         self.roll_freq=0.3   
-        self.roll_amp=np.radians(1.5)
-        
+        self.roll_amp=np.radians(1.5)      
         self.pitch_freq=0.1   
         self.pitch_amp=np.radians(0.9)
         
@@ -62,7 +58,9 @@ class naaut_simulator(Node):
         self.global_odometry_pub  = self.create_publisher(Odometry,  self.global_odometry_topic,  10)      
         self.local_odometry_pub  = self.create_publisher(Odometry,  self.local_odometry_topic,  10)                
         self.tf_broadcaster = TransformBroadcaster(self)
-       
+
+        self.x_vel=0.0
+        self.rz_vel=0.0            
         run_sim_loop_thread = threading.Thread(target=self._run_sim_loop, daemon=True)
         run_sim_loop_thread.start()
     
@@ -89,13 +87,15 @@ class naaut_simulator(Node):
             heading += heading_dot * self.time_step              
             
             thrust_vect=  np.array([np.cos(heading), np.sin(heading)]) * thrust
-            
-            # drag orientato come il vettore velocità
-            drag_force = self.drag_coefficient[0] * lin_vel
 
-            net_force = thrust_vect - drag_force
-            acceleration = net_force / self.mass
-            lin_vel += acceleration * self.time_step
+            drag_force = self.drag_coefficient[0] * lin_vel
+            total_force = thrust_vect - drag_force
+            act_accel = total_force / self.mass
+
+            # integrate accel
+            lin_vel += act_accel * self.time_step
+
+            # integrate velocity
             lin_pos += lin_vel * self.time_step
             
             alpha = 0.05
@@ -104,28 +104,24 @@ class naaut_simulator(Node):
             roll = self.roll_amp*math.sin(2 * math.pi * self.roll_freq * timestamp)
             pitch = np.clip(self.pitch_amp*math.sin(2 * math.pi * self.pitch_freq * timestamp) - thr_filt * 0.01, -0.3, 0.3)
             
-            self._pub_simu_results(heading, pitch, roll, lin_pos, lin_vel, thrust_vect)
-            if (int(timestamp*1000) % 200) == 0:        
-                self._pub_gnss_simu_results(heading, pitch, roll, lin_pos, lin_vel, thrust_vect)
-                
-            timestamp+=self.time_step
-            
-            time.sleep(self.time_step)           
+            self._pub_simu_results(heading, pitch, roll, lin_pos, lin_vel)
+            self._pub_gnss_simu_results(heading, pitch, roll, lin_pos, lin_vel)    
+            timestamp+=self.time_step            
+            time.sleep(self.time_step)
+
         self.get_logger().info("Finished sim")
         
-    def _pub_gnss_simu_results(self, heading, pitch, roll,  xy_location, xy_velocity, thrust): 
+    def _pub_gnss_simu_results(self, heading, pitch, roll,  xy_location, xy_velocity): 
         this_time = self.get_clock().now().to_msg()
         quaternion = quaternion_from_euler(roll, pitch, heading)     
         
+        #local to wgs84
         lon, lat = self._local_odom_to_wgs84(xy_location, self.datum_lat, self.datum_lon)
         
-        lon+=np.random.rand()*0.00001
-        lat+=np.random.rand()*0.00001
+        lon += np.random.rand()*0.00002
+        lat += np.random.rand()*0.00002
         elevation = 0.0
-        
-        coord_transformer = self._wgs84_to_UTM(lat, lon)
-        utm_x, utm_y = coord_transformer.transform(lat, lon)
-            
+                    
         #Publish GPS Fix Data
         fix_msg = NavSatFix()
         fix_msg.header.stamp = this_time
@@ -137,25 +133,19 @@ class naaut_simulator(Node):
         fix_msg.position_covariance[4] = float(0.01)**2
         fix_msg.position_covariance[8] = float(0.01)**2
         fix_msg.position_covariance_type = NavSatFix.COVARIANCE_TYPE_DIAGONAL_KNOWN
-        
-        #Publish emulated IMU Data
-        imu_message = Imu()
-        imu_message.header.frame_id = self.imu_link
-        imu_message.header.stamp = self.get_clock().now().to_msg()    
-        imu_message.orientation.x = quaternion[0]
-        imu_message.orientation.y = quaternion[1]
-        imu_message.orientation.z = quaternion[2]
-        imu_message.orientation.w = quaternion[3]        
-        imu_message.orientation_covariance    = [0.0] * 9
             
         #publish odometry with gps and UTM
+
+        coord_transformer = self._wgs84_to_UTM(lat, lon)
+        utm_x, utm_y = coord_transformer.transform(lat, lon)
+
         global_odom_msg = Odometry()
         global_odom_msg.header.stamp = this_time
         global_odom_msg.header.frame_id = 'wgs84'
         global_odom_msg.child_frame_id  = self.gnss_link
         global_odom_msg.pose.pose.position.x = utm_x
         global_odom_msg.pose.pose.position.y = utm_y
-        global_odom_msg.pose.pose.position.z = 0.0
+        global_odom_msg.pose.pose.position.z = elevation
         global_odom_msg.pose.pose.orientation.x = quaternion[0]
         global_odom_msg.pose.pose.orientation.y = quaternion[1]
         global_odom_msg.pose.pose.orientation.z = quaternion[2]
@@ -164,72 +154,18 @@ class naaut_simulator(Node):
         global_odom_msg.pose.covariance[21]     = 0.1
         global_odom_msg.pose.covariance[28]     = 0.1
         global_odom_msg.pose.covariance[35]     = 0.1
-        global_odom_msg.twist.twist.linear.x    = xy_velocity[0]
-        global_odom_msg.twist.twist.linear.y    = xy_velocity[1]
-        global_odom_msg.twist.twist.linear.z    = 0.0
-        global_odom_msg.twist.covariance        = [0.0] * 36
-        
-        #publish odometry with gps and UTM
-        local_odom_msg = Odometry()
-        local_odom_msg.header.stamp = this_time
-        local_odom_msg.header.frame_id = 'odom'
-        local_odom_msg.child_frame_id  = 'base_link'
-        local_odom_msg.pose.pose.position.x = xy_location[0]
-        local_odom_msg.pose.pose.position.y = xy_location[1]
-        local_odom_msg.pose.pose.position.z = 0.0
-        local_odom_msg.pose.pose.orientation.x = quaternion[0]
-        local_odom_msg.pose.pose.orientation.y = quaternion[1]
-        local_odom_msg.pose.pose.orientation.z = quaternion[2]
-        local_odom_msg.pose.pose.orientation.w = quaternion[3]
-        local_odom_msg.pose.covariance         = [0.0] * 36
-        local_odom_msg.pose.covariance[21]     = 0.1
-        local_odom_msg.pose.covariance[28]     = 0.1
-        local_odom_msg.pose.covariance[35]     = 0.1
-        local_odom_msg.twist.twist.linear.x    = xy_velocity[0]
-        local_odom_msg.twist.twist.linear.y    = xy_velocity[1]
-        local_odom_msg.twist.twist.linear.z    = 0.0
-        local_odom_msg.twist.covariance        = [0.0] * 36
-        
-        t = TransformStamped()
-        t.header.stamp = this_time
-        t.header.frame_id = "odom"
-        t.child_frame_id = "base_link"
-        t.transform.translation.x = local_odom_msg.pose.pose.position.x
-        t.transform.translation.y = local_odom_msg.pose.pose.position.y
-        t.transform.translation.z = 0.0
-        t.transform.rotation.x = local_odom_msg.pose.pose.orientation.x
-        t.transform.rotation.y = local_odom_msg.pose.pose.orientation.y
-        t.transform.rotation.z = local_odom_msg.pose.pose.orientation.z
-        t.transform.rotation.w = local_odom_msg.pose.pose.orientation.w
-        
+        #global_odom_msg.twist.twist.linear.x    = xy_velocity[0]
+        #global_odom_msg.twist.twist.linear.y    = xy_velocity[1]
+        #global_odom_msg.twist.twist.linear.z    = 0.0
+        #global_odom_msg.twist.covariance        = [0.0] * 36
+            
         self.global_odometry_pub.publish(global_odom_msg)
         self.fix_pub.publish(fix_msg)
         
     
-    def _pub_simu_results(self, heading, pitch, roll,  xy_location, xy_velocity, thrust):          
+    def _pub_simu_results(self, heading, pitch, roll,  xy_location, xy_velocity):          
         this_time = self.get_clock().now().to_msg()
         quaternion = quaternion_from_euler(roll, pitch, heading)     
-        
-        lon, lat = self._local_odom_to_wgs84(xy_location, self.datum_lat, self.datum_lon)
-        
-        lon+=np.random.rand()*0.00001
-        lat+=np.random.rand()*0.00001
-        elevation = 0.0
-        
-        coord_transformer = self._wgs84_to_UTM(lat, lon)
-        utm_x, utm_y = coord_transformer.transform(lat, lon)
-            
-        #Publish GPS Fix Data
-        fix_msg = NavSatFix()
-        fix_msg.header.stamp = this_time
-        fix_msg.header.frame_id = self.gnss_link
-        fix_msg.latitude = lat
-        fix_msg.longitude = lon
-        fix_msg.altitude = elevation
-        fix_msg.position_covariance[0] = float(0.01)**2
-        fix_msg.position_covariance[4] = float(0.01)**2
-        fix_msg.position_covariance[8] = float(0.01)**2
-        fix_msg.position_covariance_type = NavSatFix.COVARIANCE_TYPE_DIAGONAL_KNOWN
         
         #Publish emulated IMU Data
         imu_message = Imu()
@@ -241,27 +177,6 @@ class naaut_simulator(Node):
         imu_message.orientation.w = quaternion[3]        
         imu_message.orientation_covariance    = [0.0] * 9
             
-        #publish odometry with gps and UTM
-        global_odom_msg = Odometry()
-        global_odom_msg.header.stamp = this_time
-        global_odom_msg.header.frame_id = 'wgs84'
-        global_odom_msg.child_frame_id  = self.gnss_link
-        global_odom_msg.pose.pose.position.x = utm_x
-        global_odom_msg.pose.pose.position.y = utm_y
-        global_odom_msg.pose.pose.position.z = 0.0
-        global_odom_msg.pose.pose.orientation.x = quaternion[0]
-        global_odom_msg.pose.pose.orientation.y = quaternion[1]
-        global_odom_msg.pose.pose.orientation.z = quaternion[2]
-        global_odom_msg.pose.pose.orientation.w = quaternion[3]
-        global_odom_msg.pose.covariance         = [0.0] * 36
-        global_odom_msg.pose.covariance[21]     = 0.1
-        global_odom_msg.pose.covariance[28]     = 0.1
-        global_odom_msg.pose.covariance[35]     = 0.1
-        global_odom_msg.twist.twist.linear.x    = xy_velocity[0]
-        global_odom_msg.twist.twist.linear.y    = xy_velocity[1]
-        global_odom_msg.twist.twist.linear.z    = 0.0
-        global_odom_msg.twist.covariance        = [0.0] * 36
-        
         #publish odometry with gps and UTM
         local_odom_msg = Odometry()
         local_odom_msg.header.stamp = this_time
