@@ -157,7 +157,7 @@ class Detector(Node):
         ranges = scan_data['ranges']
         
         for detection in detections:
-            if detection['cls'] == 'person': #ONLY FOR DEBUG WITH yolo8n.pt TODO eliminare
+            if detection['cls'] == 'person': #ONLY FOR DEBUG WITH yolo8n.pt TODO eliminare!
                 x1 = detection['x1']
                 x2 = detection['x2']
                 center_x = (x1 + x2) / 2 
