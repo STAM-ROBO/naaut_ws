@@ -26,6 +26,7 @@ setup(
             'logged_waypoint_follower = naaut_base.logged_waypoint_follower:main',
             'interactive_waypoint_follower = naaut_base.interactive_waypoint_follower:main',
             'gps_waypoint_logger = naaut_base.gps_waypoint_logger:main'
+            'my_map = naaut_base.my_map:main'
         ],
     },
 )

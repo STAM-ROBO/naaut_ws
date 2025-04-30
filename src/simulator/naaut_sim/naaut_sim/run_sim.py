@@ -65,7 +65,7 @@ class naaut_simulator(Node):
         run_sim_loop_thread.start()
     
     def _get_cmd_vel(self,msg):
-        self.x_vel=msg.linear.x * 5.0
+        self.x_vel=msg.linear.x * 15.0
         self.rz_vel=msg.angular.z  * 40.0
                
     def _run_sim_loop(self):
