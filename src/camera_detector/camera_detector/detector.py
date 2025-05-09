@@ -143,7 +143,7 @@ class Detector(Node):
 
         with self.lidar_data_lock:
             if self.latest_scan_data is None:
-                self.get_logger().warning("No LiDAR data available.")
+                self.get_logger().warning("No LiDAR data available.", throttle_duration_sec=1)
                 return
             scan_data = self.latest_scan_data.copy()
         

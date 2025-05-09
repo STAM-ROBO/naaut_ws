@@ -1,7 +1,7 @@
 import math
 from geographic_msgs.msg import GeoPose
 from geometry_msgs.msg import Quaternion
-
+from pyproj import CRS, Proj, Transformer
 
 def quaternion_from_euler(roll, pitch, yaw):
     """
@@ -52,3 +52,19 @@ def latLonYaw2Geopose(latitude: float, longitude: float, yaw: float = 0.0) -> Ge
     geopose.position.longitude = longitude
     geopose.orientation = quaternion_from_euler(0.0, 0.0, yaw)
     return geopose
+
+
+def wgs84_to_UTM(lat, lon):
+    #calcolo zona UTM
+    zone_number = int((lon + 180) / 6) + 1
+    #are we in norther hemisphere?
+    isnorth = lat >= 0
+    #wgs84 system EPSG code
+    wgs84_crs = CRS("epsg:4326")
+    #make the appropriate UTM EPSG code depending on whether you are in the Northern Hemisphere
+    utm_crs_str = f"epsg:326{zone_number}" if isnorth else f"epsg:327{zone_number}"
+    utm_crs     = CRS(utm_crs_str)
+    #create a coordinate converter
+    transformer = Transformer.from_crs(wgs84_crs, utm_crs, always_xy=True)
+    return transformer
+ 

@@ -84,9 +84,9 @@ def generate_launch_description():
         name='dc_motor_driver',
         output='screen',
         parameters=[{
-                    'serial_port' : '/dev/serial/by-path/platform-3610000.usb-usb-0:2.4:1.0',
-                    'baudrate' : 115200
-                    }])
+                'serial_port' : '/dev/serial/by-path/platform-3610000.usb-usb-0:2.4:1.0',
+                'baudrate' : 115200
+                }])
     
     map_odom_tf_pub = Node(
         package="tf2_ros",
@@ -132,16 +132,44 @@ def generate_launch_description():
         executable="run_sim",
         name="naaut_sim",
     )
+    
+    camera_detector = Node(
+    package="camera_detector",
+    executable="camera_detector",
+    name="camera_detector",
+    )
+    
+    navsat_transform_service = Node(
+        package="robot_localization",
+        executable="navsat_transform_node",
+        name="navsat_transform",
+        output="screen",
+        #parameters=[rl_params_file, {"use_sim_time": True}],
+        #remappings=[
+        #    #expected_topic,   available topic
+        #    #inputs
+        #    ("imu/data", "imu"),
+        #    ("odometry/filtered", "odometry/global"),
+        #    ("gps/fix", "gps/fix"),
+        #    #outputs
+        #    ("gps/filtered", "gps/filtered"),
+        #    ("odometry/gps", "odometry/gps"),
+        #    
+        #],
+    )
+
 
     return LaunchDescription([ 
         #interactive_wf_node,
-        #motor_interface_node,
+        motor_interface_node,
         robot_state_publisher_node,
         map_odom_tf_pub,
         #map_origin_tf_pub,
         #robot_localization_cmd,
+        #navsat_transform_service,
         initialize_mapviz_origin,
         navigation2_cmd,
         #gnss_rtk_receiver,
-        naaut_simulator
+        naaut_simulator,
+        camera_detector
     ])

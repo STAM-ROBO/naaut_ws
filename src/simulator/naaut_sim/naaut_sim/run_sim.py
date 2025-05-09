@@ -118,8 +118,8 @@ class naaut_simulator(Node):
         #local to wgs84
         lon, lat = self._local_odom_to_wgs84(xy_location, self.datum_lat, self.datum_lon)
         
-        lon += np.random.rand()*0.00002
-        lat += np.random.rand()*0.00002
+        lon += np.random.rand()*0.0000002
+        lat += np.random.rand()*0.0000002
         elevation = 0.0
                     
         #Publish GPS Fix Data

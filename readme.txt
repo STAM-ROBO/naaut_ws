@@ -15,6 +15,7 @@ sudo apt install -y ros-humble-nav2-bringup
 sudo apt install -y ros-humble-robot-localization
 sudo apt install -y ros-humble-tf2-tools
 sudo apt install -y ros-humble-tf-transformations
+sudo apt install -y ros-humble-swri-transform-util
 pip install pyserial pyproj
 pip install fastapi
 pip install uvicorn 
