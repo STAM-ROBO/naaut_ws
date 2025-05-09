@@ -111,6 +111,7 @@ class Detector(Node):
             
             frame_ts = self.get_clock().now().to_msg()
             frame_count += 1
+
             if frame_count % skip_rate != 0:
                 continue
 
@@ -148,7 +149,7 @@ class Detector(Node):
             if self.class_names[cls_id]  in ['ship', 'buoy', 'fishnet buoy']: 
                 
                 label = f"{self.class_names[cls_id]} conf:{confidence:.2f}"
-                self.get_logger().info(f"Detected {label} at y1:{y1}, y2:{y2}")
+                self.get_logger().info(f"Processing Frame: Detected {label} at y1:{y1}, y2:{y2}")
 
                 cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
                 cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
@@ -251,8 +252,8 @@ class Detector(Node):
             return best_match, detections
         
         self.get_logger().warning(
-        f"Nessuna scansione LiDAR entro la soglia di {0.1}s. "
-        f"Diff minimo trovato = {min_diff:.3f}s. Riavviare il LiDAR se necessario.")
+        f"Sincronizzazione Camera-LiDAR: Nessuna scansione LiDAR entro la soglia di {0.1}s. "
+        f"Delay minimo trovato = {min_diff:.3f}s. Riavviare il LiDAR se necessario.")
         return None, None
             
     def _update_costmap(self):
@@ -291,7 +292,7 @@ class Detector(Node):
                 filtered_angles = angles[filt_angles]
                 filtered_ranges = ranges[filt_angles]
 
-                if filtered_ranges.size > 0:
+                if filtered_ranges.any():
                     if not detection['use_lidar_range']:
                         # La bounding box non è all'altezza del LiDAR: usa metodo di stima
                         width_bb = x2 - x1
@@ -311,7 +312,7 @@ class Detector(Node):
                 #     f"LiDAR: [{left_bound_lidar_rad:.3f}, {right_bound_lidar_rad:.3f}]"
 
                 else:
-                    self.get_logger().info(f"No LiDAR data available for {detection['cls']} in the specified range.")
+                    self.get_logger().info(f"No available LiDAR data within the bounding box range for detected object: {detection['cls']}.")
                     return
                 
                 for angle in filtered_angles:
