@@ -14,6 +14,11 @@ import math
 
 from ultralytics import YOLO
 
+from mjpeg_streamer import MjpegServer, Stream
+import socket
+
+
+
 
 class Detector(Node):
     
@@ -32,7 +37,7 @@ class Detector(Node):
         self.map_lock = threading.Lock()
 
         # === Model ===
-        self.model_name = "naaut_model.pt" # use naaut_model.pt, use yolov8n.pt for debug
+        self.model_name = "yolov8n.pt" # use naaut_model.pt, use yolov8n.pt for debug
         self.model = YOLO(f"src/camera_detector/camera_detector/model/{self.model_name}")
         self.class_names = self.model.names # {0: 'ship', 1: 'buoy', 2: 'fishnet buoy', 3: 'lighthouse', 4: 'wind farm'}
         self.get_logger().info(f"Class names: {self.class_names}")
@@ -49,7 +54,7 @@ class Detector(Node):
         self.detected_objects = []
         self.detected_objects_lock = threading.Lock()
 
-        if self.model_name == "yolov8n.pt": #TODO solo per DEBUG
+        if self.model_name == "yolov8n.pt": #TODO solo per DEBUG  
             self.default_size =  {
                 0: {'name': 'person', 'width': 0.7, 'height': 1.8},
                 1:  {'name': 'bicycle', 'width': 1.5, 'height': 1},
@@ -64,6 +69,15 @@ class Detector(Node):
                 # 3: {'name': 'lighthouse', 'width': 6.0, 'height': 20.0},   # Faro 
                 # 4: {'name': 'wind farm', 'width': 8.0, 'height': 8.0}
                     }  
+            
+        # === MJPEG Streamer ===
+        self.stream_url="mjpeg"
+        self.stream_port=8080
+        self.bound_ip='127.0.0.1'
+        self.stream = Stream(self.stream_url, size=(1280, 720), quality=80, fps=30)
+        self.server = MjpegServer(self.bound_ip, self.stream_port)
+        self.server.add_stream(self.stream)
+        self.server.start()
 
         # === LiDAR ===
         self.latest_scan_data = None
@@ -77,8 +91,8 @@ class Detector(Node):
         # === THREAD e Timer ===
         self.camera_thread = threading.Thread(target=self._camera_loop, daemon=True)
         self.camera_thread.start()
-        self.create_timer(0.1, self._update_costmap)
-        self.create_timer(0.1, self._publish_costmap)
+        self.create_timer(0.2, self._update_costmap)
+        self.create_timer(0.2, self._publish_costmap)
 
         # === Publisher/Subscriber ===
         self.image_pub = self.create_publisher(Image, '/camera/image_raw', 10)
@@ -101,7 +115,7 @@ class Detector(Node):
     def _camera_loop(self):
 
         frame_count = 0
-        skip_rate = 10 #TODO everificare quanto è necessario in prod
+        skip_rate = 5 #TODO verificare quanto è necessario in prod
 
         while True:
             ret, frame = self.cap.read()
@@ -117,15 +131,19 @@ class Detector(Node):
 
             processed_frame = self._process_frame(frame, frame_ts)
 
-            cv2.line(processed_frame, (0, self.lidar_lower_limit), (self.camera_width, self.lidar_lower_limit), (0, 0, 255), 2)
-            cv2.line(processed_frame, (0, self.lidar_upper_limit), (self.camera_width, self.lidar_upper_limit), (0, 255, 0), 2)
-
+            # Publish the processed frame to the ROS topic
             try:
                 img_msg = self.bridge.cv2_to_imgmsg(processed_frame, "bgr8")
                 img_msg.header.stamp = self.get_clock().now().to_msg()
                 self.image_pub.publish(img_msg)
             except Exception as e:
                 self.get_logger().error(f"Image publishing failed: {str(e)}")
+
+            # Publish the processed frame to the MJPEG stream
+            try:
+                self.stream.set_frame(processed_frame)
+            except Exception as e:
+                self.get_logger().error(f"Streaming frame failed: {str(e)}")
 
     def _process_frame(self, frame, frame_ts):
 
@@ -145,14 +163,13 @@ class Detector(Node):
             else:
                 use_lidar = False
 
-            #if self.class_names[cls_id] in ['person', 'car', 'bicycle']: #ONLY FOR DEBUG WITH yolo8n.pt TODO eliminare!
-            if self.class_names[cls_id]  in ['ship', 'buoy', 'fishnet buoy']: 
-                
-                label = f"{self.class_names[cls_id]} conf:{confidence:.2f}"
-                self.get_logger().info(f"Processing Frame: Detected {label} at y1:{y1}, y2:{y2}")
+            if (self.model_name == "yolov8n.pt" and self.class_names[cls_id] in ['person', 'car', 'bicycle']) or (self.model_name == "naaut_model.pt" and self.class_names[cls_id] in ['ship', 'buoy', 'fishnet buoy']):
 
+                label = f"{self.class_names[cls_id]} conf:{confidence:.2f}"
                 cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
                 cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
+                cv2.line(frame, (0, self.lidar_lower_limit), (self.camera_width, self.lidar_lower_limit), (0, 0, 255), 2)
+                cv2.line(frame, (0, self.lidar_upper_limit), (self.camera_width, self.lidar_upper_limit), (0, 255, 0), 2)
 
                 detections.append({
                     'cls': self.class_names[cls_id],
@@ -168,9 +185,11 @@ class Detector(Node):
 
             with self.detected_objects_lock:
                 self.detected_objects = detections
+
         return frame
 
     def _lidar_callback(self, msg):
+
         with self.lidar_data_lock:
             angles = []
             ranges = []
@@ -183,7 +202,6 @@ class Detector(Node):
                 angles.append(angle)
                 ranges.append(dist)
             
- 
             self.latest_scan_data = {
                 'timestamp': self.get_clock().now().to_msg(),
                 'angles': np.array(angles),      # Array di angoli in radianti
@@ -196,7 +214,7 @@ class Detector(Node):
             }
 
             self.lidar_data_buffer.append(self.latest_scan_data)
-                
+
     def _estimate_distance(self, cls_id, pixel_width):
         """
         Stima la distanza usando la dimensione nota dell'oggetto, la larghezza in pixel e la lunghezza focale della camera.
@@ -228,8 +246,8 @@ class Detector(Node):
     def _synchronize_lidar_and_camera(self):
 
         with self.lidar_data_lock:
-            if self.lidar_data_buffer is None:
-                self.get_logger().warning("No LiDAR data available.")
+            if len(self.lidar_data_buffer) == 0 :
+                self.get_logger().warning("No LiDAR data available: Please check if the LiDAR is properly connected.", throttle_duration_sec=1)
                 return None, None
             buffer_data = self.lidar_data_buffer.copy()
 
@@ -240,26 +258,30 @@ class Detector(Node):
             detections = self.detected_objects.copy()
             ts_frame = detections[0]['timestamp']
 
-        min_diff = float('inf')
         best_match = None
+        delay = float('inf')
+        max_sync_delay = 0.1
+
         for scan in buffer_data:
             diff = abs(self._time_to_float(scan['timestamp']) - self._time_to_float(ts_frame))
-            if diff < min_diff:
-                min_diff = diff
+            if diff < delay:
+                delay = diff
                 best_match = scan
-        
-        if best_match and min_diff <= 0.1:
+        if best_match and delay <= max_sync_delay:
             return best_match, detections
         
         self.get_logger().warning(
-        f"Sincronizzazione Camera-LiDAR: Nessuna scansione LiDAR entro la soglia di {0.1}s. "
-        f"Delay minimo trovato = {min_diff:.3f}s. Riavviare il LiDAR se necessario.")
+            f"Camera-LiDAR Synchronization: No LiDAR scan received within the {max_sync_delay} sec threshold.\n"
+            f"Delay observed = {delay:.3f} seconds. Please restart the LiDAR if necessary."
+            )
         return None, None
             
     def _update_costmap(self):
         self.map.fill(0)
+
         W = self.camera_width
         scan_data, detections = self._synchronize_lidar_and_camera()
+
         if scan_data is None or detections is None:
             return
     
@@ -267,8 +289,8 @@ class Detector(Node):
         ranges = scan_data['ranges']
         
         for detection in detections:
-            #if detection['cls'] in ['person', 'car', 'bicycle']: #row ONLY FOR DEBUG WITH yolo8n.pt TODO eliminare!
-            if detection['cls']  in ['ship', 'buoy', 'fishnet buoy']: 
+            if (self.model_name == "yolov8n.pt" and detection['cls'] in ['person', 'car', 'bicycle']) or (self.model_name == "naaut_model.pt" and detection['cls'] in ['ship', 'buoy', 'fishnet buoy']):
+
                 x1 = detection['x1']
                 x2 = detection['x2']
 
@@ -305,12 +327,11 @@ class Detector(Node):
                         
                     else:
                         range = min(filtered_ranges)
-                        self.get_logger().info(f"Detected {detection['cls']} at range: {range:.2f} meters")
-                #     f"Camera: center={center_x_deg:.2f}° ({center_x}px) | "
-                #     f"Bounds: [{left_bound_angle:.2f}°, {right_bound_angle:.2f}°] | "
-                #     f"Rad: [{left_bound_angle_rad:.3f}, {right_bound_angle_rad:.3f}] | "
-                #     f"LiDAR: [{left_bound_lidar_rad:.3f}, {right_bound_lidar_rad:.3f}]"
-
+                        self.get_logger().info(f"Detected {str.upper(detection['cls'])} at range: {range:.2f} meters")
+                                                #     f"Camera: center={center_x_deg:.2f}° ({center_x}px) | "
+                                                #     f"Bounds: [{left_bound_angle:.2f}°, {right_bound_angle:.2f}°] | "
+                                                #     f"Rad: [{left_bound_angle_rad:.3f}, {right_bound_angle_rad:.3f}] | "
+                                                #     f"LiDAR: [{left_bound_lidar_rad:.3f}, {right_bound_lidar_rad:.3f}]"
                 else:
                     self.get_logger().info(f"No available LiDAR data within the bounding box range for detected object: {detection['cls']}.")
                     return
@@ -338,11 +359,9 @@ class Detector(Node):
         
         with self.map_lock:
             og.data = self.map.flatten().astype(int).tolist()
-
         try:
             self.costmap_pub.publish(og)
-            #self.get_logger().info("Costmap published.")
-
+            self.get_logger().info("Costmap published.", throttle_duration_sec=1)
         except Exception as e:
             self.get_logger().error(f"Failed to publish costmap: {str(e)}")
      
